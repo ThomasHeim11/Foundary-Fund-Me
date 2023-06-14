@@ -18,7 +18,6 @@ contract FundMeTest is Test {
         DeployFundMe deployFundMe = new DeployFundMe();
         fundMe = deployFundMe.run();
         vm.deal(USER, STARTING_BALANCE);
-
     }
 
     function testMinimumDollarIsFive() public {
@@ -26,13 +25,14 @@ contract FundMeTest is Test {
     }
 
     function testOwnerIsMsgSender() public {
-        assertEq(fundMe.i_owner(), msg.sender);
+        assertEq(fundMe.getOwner(), msg.sender);
     }
 
     function testPriceFeedVersionIsAccurate() public {
         uint256 version = fundMe.getVersion();
         assertEq(version, 4);
     }
+
     function testFundFailsWithoutEnoughETH() public {
         vm.expectRevert();
         fundMe.fund();
@@ -54,12 +54,31 @@ contract FundMeTest is Test {
         assertEq(funder, USER);
     }
 
-    function testOnlyOwnerCanWithdraw() public {
+    modifier funded() {
         vm.prank(USER);
-        fundMe.fund(value: SEND_VALUE)();
+        fundMe.fund{value: SEND_VALUE}();
+        _;
+    }
 
-        vmExpectRevert();
+    function testOnlyOwnerCanWithdraw() public funded {
         vm.prank(USER);
+        vm.expectRevert();
         fundMe.withdraw();
     }
+
+    function testWithDrawWithASingleFunder() public funded {
+        uint256 startingOwnerBalance = fundMe.getOwner().balance;
+        uint256 startingFundMeBalance = address(fundMe).balance;
+
+        vm.prank(fundMe.getOwner());
+        fundMe.withdraw();
+
+        uint256 endingFundMeBalance = address(fundMe).balance;
+        uint256 endingOwnerBalance = fundMe.getOwner().balance;
+        assertEq(endingFundMeBalance, 0);
+        assertEq(
+            startingFundMeBalance + startingOwnerBalance,
+            endingOwnerBalance 
+    };
+
 }
