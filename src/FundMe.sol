@@ -38,6 +38,10 @@ contract FundMe {
         if (msg.sender != i_owner) revert FundMe__NotOwner();
         _;
     }
+
+    function cheaperWithdraw() public onlyOwner{
+        
+    }
     
     function withdraw() public onlyOwner {
         for (uint256 funderIndex=0; funderIndex < s_funders.length; funderIndex++){
