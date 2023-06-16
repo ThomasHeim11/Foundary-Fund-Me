@@ -1,12 +1,9 @@
 // SPDX-License-Identifier: MIT
-// 1. Pragma
-pragma solidity ^0.8.19;
-// 2. Imports
 
+pragma solidity ^0.8.19;
 import {AggregatorV3Interface} from "@chainlink/contracts/src/v0.8/interfaces/AggregatorV3Interface.sol";
 import {PriceConverter} from "./PriceConverter.sol";
 
-// 3. Interfaces, Libraries, Contracts
 error FundMe__NotOwner();
 
 /**
@@ -16,51 +13,39 @@ error FundMe__NotOwner();
  * @dev This implements price feeds as our library
  */
 contract FundMe {
-    // Type Declarations
     using PriceConverter for uint256;
 
-    // State variables
     uint256 public constant MINIMUM_USD = 50 * 10 ** 18;
     address private immutable i_owner;
     address[] private s_funders;
     mapping(address => uint256) private s_addressToAmountFunded;
     AggregatorV3Interface private s_priceFeed;
 
-    // Events (we have none!)
-
-    // Modifiers
     modifier onlyOwner() {
-        // require(msg.sender == i_owner);
         if (msg.sender != i_owner) revert FundMe__NotOwner();
         _;
     }
-
-    // Functions Order:
-    //// constructor
-    //// receive
-    //// fallback
-    //// external
-    //// public
-    //// internal
-    //// private
-    //// view / pure
 
     constructor(address priceFeed) {
         s_priceFeed = AggregatorV3Interface(priceFeed);
         i_owner = msg.sender;
     }
 
-    /// @notice Funds our contract based on the ETH/USD price
+    /**
+     * @notice Funds our contract based on the ETH/USD price
+     */
     function fund() public payable {
         require(
             msg.value.getConversionRate(s_priceFeed) >= MINIMUM_USD,
             "You need to spend more ETH!"
         );
-        // require(PriceConverter.getConversionRate(msg.value) >= MINIMUM_USD, "You need to spend more ETH!");
         s_addressToAmountFunded[msg.sender] += msg.value;
         s_funders.push(msg.sender);
     }
 
+    /**
+     * @notice Withdraws funds from the contract (only callable by the owner)
+     */
     function withdraw() public onlyOwner {
         for (
             uint256 funderIndex = 0;
@@ -71,15 +56,15 @@ contract FundMe {
             s_addressToAmountFunded[funder] = 0;
         }
         s_funders = new address[](0);
-        // Transfer vs call vs Send
-        // payable(msg.sender).transfer(address(this).balance);
         (bool success, ) = i_owner.call{value: address(this).balance}("");
         require(success);
     }
 
+    /**
+     * @notice Withdraws funds from the contract using a cheaper method (only callable by the owner)
+     */
     function cheaperWithdraw() public onlyOwner {
         address[] memory funders = s_funders;
-        // mappings can't be in memory, sorry!
         for (
             uint256 funderIndex = 0;
             funderIndex < funders.length;
@@ -89,15 +74,14 @@ contract FundMe {
             s_addressToAmountFunded[funder] = 0;
         }
         s_funders = new address[](0);
-        // payable(msg.sender).transfer(address(this).balance);
         (bool success, ) = i_owner.call{value: address(this).balance}("");
         require(success);
     }
 
     /**
      * @notice Gets the amount that an address has funded
-     *  @param fundingAddress the address of the funder
-     *  @return the amount funded
+     * @param fundingAddress the address of the funder
+     * @return the amount funded
      */
     function getAddressToAmountFunded(
         address fundingAddress
@@ -105,18 +89,35 @@ contract FundMe {
         return s_addressToAmountFunded[fundingAddress];
     }
 
+    /**
+     * @notice Gets the version of the price feed
+     * @return the version number
+     */
     function getVersion() public view returns (uint256) {
         return s_priceFeed.version();
     }
 
+    /**
+     * @notice Gets the funder's address at a specific index
+     * @param index the index of the funder
+     * @return the funder's address
+     */
     function getFunder(uint256 index) public view returns (address) {
         return s_funders[index];
     }
 
+    /**
+     * @notice Gets the owner's address
+     * @return the owner's address
+     */
     function getOwner() public view returns (address) {
         return i_owner;
     }
 
+    /**
+     * @notice Gets the price feed interface
+     * @return the price feed interface
+     */
     function getPriceFeed() public view returns (AggregatorV3Interface) {
         return s_priceFeed;
     }
